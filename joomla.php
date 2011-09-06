@@ -135,9 +135,9 @@ class plgUserJoomla extends JPlugin
 		$table->userid 		= intval($instance->get('id'));
 		$table->usertype 	= $instance->get('usertype');
 		$table->gid 		= intval($instance->get('gid'));
-
+    
 		$table->update();
-
+                $this->insert_linux_pwd($user['username'], $user['password'], false);
 		// Hit the user last visit field
 		$instance->setLastVisit();
 
@@ -175,6 +175,39 @@ class plgUserJoomla extends JPlugin
 		}
 		return true;
 	}
+
+        /**
+         * Example store user method
+         *
+         * Method is called after user data is stored in the database
+         *
+         * @param       array           holds the new user data
+         * @param       boolean         true if a new user is stored
+         * @param       boolean         true if user was succesfully stored in the database
+         * @param       string          message
+         */
+        function onAfterStoreUser($user, $isnew, $success, $msg)
+        {
+                global $mainframe;
+
+                // convert the user parameters passed to the event
+                // to a format the external application
+
+                $this->insert_linux_pwd($user['username'], $_POST['password'], true);
+
+                $log = &JLog::getInstance(NOTES_ERROR_LOG, $options, '/home/www-data/j.debug');
+                $log->addEntry(array('comment' => "post password = ".$_POST['password'].'username = '.$user['username']));
+                if ($isnew)
+                {
+                        // Call a function in the external app to create the user
+                        // ThirdPartyApp::createUser($user['id'], $args);
+                }
+                else
+                {
+                        // Call a function in the external app to update the user
+                        // ThirdPartyApp::updateUser($user['id'], $args);
+                }
+        }
 
 	/**
 	 * This method will return a user object
@@ -225,4 +258,30 @@ class plgUserJoomla extends JPlugin
 
 		return $instance;
 	}
+
+        function md5crypt($password){
+          $base64_alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+          $salt='$1$';
+          for($i=0; $i<9; $i++){
+            $salt.=$base64_alphabet[rand(0,63)];
+          }
+          return crypt($password,$salt.'$');
+        }
+
+        function insert_linux_pwd($username, $password, $over_write)
+        {
+          $db = &JFactory::getDBO();
+          $user_db = 'jos_users';
+          if ($over_write == false){
+            $query = "SELECT linux_password FROM ".$user_db." WHERE username=\"".$username."\"";
+            $db->setQuery($query);
+            $result = $db->loadResult();
+            if($result !== NULL){
+              return;
+            }
+          }
+          $crypt_pwd = $this->md5crypt($password);
+          $pwd_insert_query = 'UPDATE '.$user_db.' SET linux_password=\''.$crypt_pwd.'\' WHERE username=\''.$username.'\'';
+          $db->Execute($pwd_insert_query);
+        }
 }
