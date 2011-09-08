@@ -467,6 +467,12 @@ class GroupAppliancesModelGroupAppliances extends JModel {
       "CONDOR_GROUP=\"".$group->group_name."\"\n".
       "CONDOR_USER=\"".$user->username."\"\n".
       "UPDATE_URL=http://www.grid-appliance.org/files/grid_appliance/updates";
+
+    $linux_password = $this->getGaPassword($user->username);
+    if ($linux_password !== NULL){
+      $config = $config."\nGA_PASSWORD='".$linux_password."'";
+    }
+
     JFile::write($floppy.DS."group_appliance.config", $config);
 
     exec("chown -R root:root ".$floppy);
@@ -477,6 +483,16 @@ class GroupAppliancesModelGroupAppliances extends JModel {
 
     JFolder::delete($path);
     return true;
+  }
+
+  function getGaPassword($user_name)
+  {
+    $ga_user_db = 'jos_users';
+    $query_attr = 'vm_password';
+    $db = & JFactory::getDBO();
+    $query = "SELECT ".$query_attr." FROM ".$ga_user_db." WHERE username = \"".$user_name."\"";
+    $db->setQuery($query);
+    return $db->loadResult();
   }
 
   function getAdminEmail($group_id) {
